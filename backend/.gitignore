@@ -1,0 +1,42 @@
+# Environment variables — DATABASE_URL, SECRET_KEY, Paystack keys, etc.
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environment (pipenv creates .venv/ inside the project by default
+# if PIPENV_VENV_IN_PROJECT is set — safe to ignore either way)
+.venv/
+venv/
+env/
+
+# Flask instance folder — this is where the SQLite fallback DB lives
+# (config.py: sqlite:///.../instance/anika.db). Never commit real data.
+instance/*.db
+instance/*.sqlite
+instance/*.sqlite3
+!instance/.gitkeep
+
+# Logs (the RotatingFileHandler in app/__init__.py writes here)
+logs/
+*.log
+
+# Flask
+.flaskenv
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
