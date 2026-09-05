@@ -4,6 +4,7 @@ from logging.handlers import RotatingFileHandler
 
 from config import BASE_DIR, Config
 from flask import Flask, jsonify
+from flask_migrate import Migrate
 from sqlalchemy import inspect, text
 
 from app.extensions import cors, db, jwt, mail, swagger
@@ -29,6 +30,23 @@ def _apply_pending_migrations():
                 continue
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl_type}"))
             conn.commit()
+
+
+# ----- NEW: apply missing indexes on startup (no migrations needed) -----
+def _apply_pending_indexes():
+    """Create missing indexes (e.g. on contacts table) if they don't exist."""
+    with db.engine.connect() as conn:
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_contacts_created_at ON contacts (created_at);"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_contacts_source ON contacts (source);"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts (status);"
+        ))
+        conn.commit()
+
 
 SWAGGER_TEMPLATE = {
     "swagger": "2.0",
@@ -58,6 +76,9 @@ def create_app(config_class=Config):
     os.makedirs(os.path.join(BASE_DIR, "instance"), exist_ok=True)
 
     db.init_app(app)
+    # ----- Flask-Migrate initialization -----
+    migrate = Migrate(app, db)  # <-- Registers 'flask db' command
+    # -----------------------------------------
     cors.init_app(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
     jwt.init_app(app)
 
@@ -146,6 +167,9 @@ def create_app(config_class=Config):
     with app.app_context():
         db.create_all()
         _apply_pending_migrations()
+        # ----- Create missing indexes -----
+        _apply_pending_indexes()
+        # ---------------------------------
         # ----- Dispose the engine so each Gunicorn worker gets its own connection -----
         db.engine.dispose()
         app.logger.info("Database engine disposed after initialization")
