@@ -1,4 +1,5 @@
 from flask import Blueprint, current_app, jsonify, request
+from flask_cors import cross_origin  # <-- import cross_origin
 
 from app.extensions import db
 from app.models.event import Event
@@ -32,10 +33,12 @@ def sync_event_seats(event, delta):
     elif event.status == "Full" and event.registered < (event.capacity or 0):
         event.status = "Live"
 
+
 registrations_bp = Blueprint("registrations", __name__, url_prefix="/api/registrations")
 
 
 @registrations_bp.post("")
+@cross_origin()  # <-- ADDED
 def create_registration():
     """
     Register for an event (public). Also opens/updates a WhatsApp thread for
@@ -130,6 +133,7 @@ def create_registration():
 
 
 @registrations_bp.get("")
+@cross_origin()  # <-- ADDED
 def list_registrations():
     """
     List registrations (admin), newest first.
@@ -155,6 +159,7 @@ def list_registrations():
 
 
 @registrations_bp.patch("/<int:reg_id>")
+@cross_origin()  # <-- ADDED (critical for CORS preflight)
 def update_registration(reg_id):
     """
     Update a registration (admin) - e.g. change status.
@@ -218,6 +223,7 @@ def update_registration(reg_id):
 
 
 @registrations_bp.delete("/<int:reg_id>")
+@cross_origin()  # <-- ADDED (critical for CORS preflight)
 def delete_registration(reg_id):
     """
     Delete a registration (admin).
