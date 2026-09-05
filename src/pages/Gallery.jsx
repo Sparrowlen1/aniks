@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ChevronRight, X } from "lucide-react";
 import Reveal from '../components/Reveal';
+import { API_BASE } from '../lib/api';
 
 const Gallery = () => {
   const [allImages, setAllImages] = useState([]);
@@ -10,7 +11,7 @@ const Gallery = () => {
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const response = await fetch("/api/gallery");
+        const response = await fetch(`${API_BASE}/api/gallery`);
         if (!response.ok) {
           throw new Error("Hey mehn failed to load gallery");
         }
@@ -23,11 +24,8 @@ const Gallery = () => {
         setAllImages(mapped);
       } catch (error) {
         console.error("Howdy! Error loading gallery:", error);
-        setAllImages([
-          { src: "/anika team.jpg", alt: "Anika Team" },
-          { src: "/jaaziya.jpg", alt: "Jaaziya" },
-          { src: "/KWAJ.jpg", alt: "KWAJ" },
-        ]);
+        // No fallback – leave empty array
+        setAllImages([]);
       }
     };
 
