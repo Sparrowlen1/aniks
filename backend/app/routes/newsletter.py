@@ -1,53 +1,14 @@
 # app/routes/newsletter.py
 from datetime import datetime
 from flask import Blueprint, current_app, jsonify, request
-import requests  # <-- added for Brevo API
 
 from app.extensions import db
 from app.models.application import Application
 from app.utils.contact_utils import create_contact_from_data
 from app.utils.decorators import require_permission
+from app.utils.email import send_brevo_email  # <-- import from shared email module
 
 newsletter_bp = Blueprint("newsletter", __name__, url_prefix="/api/newsletter")
-
-
-# ----- Helper: send email via Brevo Transactional API -----
-def send_brevo_email(to_email, to_name, subject, html_content, text_content):
-    """Send email using Brevo Transactional API (replaces SMTP for this route)."""
-    api_key = current_app.config.get("BREVO_API_KEY")
-    if not api_key:
-        current_app.logger.error("BREVO_API_KEY not configured – email not sent")
-        return False
-
-    url = "https://api.brevo.com/v3/smtp/email"
-    headers = {
-        "api-key": api_key,
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "sender": {
-            "email": current_app.config.get("MAIL_DEFAULT_SENDER", "noreply@anika.org"),
-            "name": "ANIKA Initiative"
-        },
-        "to": [{"email": to_email, "name": to_name or to_email}],
-        "subject": subject,
-        "htmlContent": html_content,
-        "textContent": text_content,
-    }
-
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
-        if response.status_code in (200, 201, 202):
-            current_app.logger.info(f"Brevo email sent to {to_email}")
-            return True
-        else:
-            current_app.logger.error(
-                f"Brevo API error: {response.status_code} - {response.text}"
-            )
-            return False
-    except Exception as e:
-        current_app.logger.error(f"Brevo email failed: {e}")
-        return False
 
 
 @newsletter_bp.post("/subscribe")
@@ -108,7 +69,7 @@ def subscribe():
         current_app.logger.error(f"Failed to create application for {email}: {e}")
         return jsonify({"error": "Failed to process subscription. Please try again."}), 500
 
-    # ----- Send confirmation email via Brevo API (no more SMTP timeout!) -----
+    # Send confirmation email via Brevo API
     try:
         subject = "Thank you for subscribing to ANIKA Newsletter!"
         html_content = f"""
@@ -209,22 +170,21 @@ def send_newsletter():
 
     for subscriber in subscribers:
         try:
-            # Optionally, you can also use Brevo API here for bulk sending,
-            # but for simplicity we'll keep the existing Flask-Mail logic,
-            # or you could adapt it similarly.
-            # For now we keep as is (or you could replace with a loop using Brevo API).
-            # We'll keep using Flask-Mail for this admin function to avoid complexity.
-            from flask_mail import Message
-            from app.extensions import mail
-            msg = Message(
+            # Use Brevo API here as well for consistency, but keep Flask-Mail for now
+            # if you prefer. We'll use the Brevo API for better reliability.
+            html_content = content  # content is already HTML
+            text_content = content  # or you can strip tags
+            result = send_brevo_email(
+                to_email=subscriber.email,
+                to_name=subscriber.name or "Subscriber",
                 subject=subject,
-                sender=("ANIKA Newsletter", current_app.config["MAIL_DEFAULT_SENDER"]),
-                recipients=[subscriber.email],
-                html=content,
-                body=content,
+                html_content=html_content,
+                text_content=text_content
             )
-            mail.send(msg)
-            success_count += 1
+            if result:
+                success_count += 1
+            else:
+                fail_count += 1
         except Exception as e:
             current_app.logger.error(f"Failed to send to {subscriber.email}: {e}")
             fail_count += 1
