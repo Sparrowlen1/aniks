@@ -83,7 +83,10 @@ export default function EventsList() {
   const handleRegister = async (e, eventId) => {
     e.preventDefault();
     const currentForm = formStates[eventId] || { fullName: '', countryCode: '254', localNumber: '', optIn: true };
-    const eventTitle = events.find(ev => ev.id === eventId)?.title || 'ANIKA Event';
+    // Find the event to get its title
+    const event = events.find(ev => ev.id === eventId);
+    const eventTitle = event?.title || 'ANIKA Event';
+
     const phone = composePhone(currentForm.countryCode, currentForm.localNumber);
     if (currentForm.localNumber.length !== 9) {
       setSuccessMsg(prev => ({ ...prev, [eventId]: 'Enter a country code and 9-digit WhatsApp number.' }));
@@ -92,16 +95,19 @@ export default function EventsList() {
 
     setLoading(prev => ({ ...prev, [eventId]: true }));
     try {
-      await submitRegistration({
+      const payload = {
         name: currentForm.fullName,
         phone,
-        eventTitle,
+        eventTitle,   // send the title as the backend expects
         consent: currentForm.optIn,
         source: 'web',
-      });
+      };
+      console.log('📤 Registration payload:', payload); // for debugging
+      await submitRegistration(payload);
       setSuccessMsg(prev => ({ ...prev, [eventId]: 'Confirmed! Registration details sent via WhatsApp.' }));
       setFormStates(prev => ({ ...prev, [eventId]: { fullName: '', countryCode: '254', localNumber: '', optIn: true } }));
-    } catch {
+    } catch (err) {
+      console.error('Registration error:', err);
       setSuccessMsg(prev => ({ ...prev, [eventId]: 'Could not confirm right now. Please try again.' }));
     } finally {
       setLoading(prev => ({ ...prev, [eventId]: false }));
