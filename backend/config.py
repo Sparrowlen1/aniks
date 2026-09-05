@@ -18,6 +18,18 @@ class Config:
     ) or "sqlite:///" + os.path.join(BASE_DIR, "instance", "anika.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # ----- Connection pool settings (fixes SSL errors with Gunicorn) -----
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,          # Check connection before using
+        "pool_recycle": 300,            # Recycle connections every 5 minutes
+        "pool_size": 5,                 # Max connections per worker
+        "max_overflow": 10,             # Extra connections if needed
+        "connect_args": {
+            "sslmode": "require",
+            "connect_timeout": 10,
+        },
+    }
+
     PAYSTACK_SECRET_KEY = os.environ.get("PAYSTACK_SECRET_KEY", "")
     PAYSTACK_PUBLIC_KEY = os.environ.get("PAYSTACK_PUBLIC_KEY", "")
     PAYSTACK_BASE_URL = os.environ.get("PAYSTACK_BASE_URL", "https://api.paystack.co")
@@ -35,7 +47,7 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@anika.org')
 
-    # ----- NEW: Brevo API key (for newsletter) -----
+    # Brevo API key (for newsletter emails)
     BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 
     # Custom emails

@@ -146,6 +146,9 @@ def create_app(config_class=Config):
     with app.app_context():
         db.create_all()
         _apply_pending_migrations()
+        # ----- Dispose the engine so each Gunicorn worker gets its own connection -----
+        db.engine.dispose()
+        app.logger.info("Database engine disposed after initialization")
 
     @app.errorhandler(404)
     def not_found(_err):

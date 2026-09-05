@@ -163,9 +163,14 @@ def create_donation():
             status='new'
         )
 
-        db.session.commit()
-        logger.info("Manual donation recorded: ref=%s, amount=%s", donation.reference, amount)
-        return jsonify(donation.to_dict()), 201
+        try:
+            db.session.commit()
+            logger.info("Manual donation recorded: ref=%s, amount=%s", donation.reference, amount)
+            return jsonify(donation.to_dict()), 201
+        except Exception as e:
+            db.session.rollback()
+            logger.error("Database commit error for manual donation: %s", e)
+            return jsonify({"error": "Failed to save donation"}), 500
 
     # method is 'mpesa' or 'card' -> go through Paystack
     email = data.get("email") or "donor@anika.org"
@@ -210,7 +215,13 @@ def create_donation():
         status='new'
     )
 
-    db.session.commit()
+    try:
+        db.session.commit()
+        logger.info("Donation record created: ref=%s, amount=%s", reference, amount)
+    except Exception as e:
+        db.session.rollback()
+        logger.error("Database commit error for donation: %s", e)
+        return jsonify({"error": "Failed to save donation"}), 500
 
     try:
         logger.info(
@@ -237,7 +248,11 @@ def create_donation():
         )
         donation.status = "Failed"
         donation.gateway_response = exc.message
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error("Failed to update donation status after Paystack error: %s", e)
         return jsonify({"error": exc.message, **donation.to_dict()}), exc.status_code
 
     payload = donation.to_dict()
@@ -340,9 +355,14 @@ def update_donation(donation_id):
         if donation.status == "Completed" and not donation.paid_at:
             donation.paid_at = datetime.utcnow()
 
-    db.session.commit()
-    logger.info("Donation %d updated: status=%s", donation.id, donation.status)
-    return jsonify(donation.to_dict()), 200
+    try:
+        db.session.commit()
+        logger.info("Donation %d updated: status=%s", donation.id, donation.status)
+        return jsonify(donation.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error("Failed to update donation %d: %s", donation_id, e)
+        return jsonify({"error": "Failed to update donation"}), 500
 
 
 @donations_bp.delete("/<int:donation_id>")
@@ -374,9 +394,14 @@ def delete_donation(donation_id):
     """
     donation = Donation.query.get_or_404(donation_id)
     db.session.delete(donation)
-    db.session.commit()
-    logger.info("Donation %d deleted", donation_id)
-    return jsonify({"deleted": True, "id": donation_id}), 200
+    try:
+        db.session.commit()
+        logger.info("Donation %d deleted", donation_id)
+        return jsonify({"deleted": True, "id": donation_id}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error("Failed to delete donation %d: %s", donation_id, e)
+        return jsonify({"error": "Failed to delete donation"}), 500
 
 
 # EXTRA ROUTES – PAYSTACK WEBHOOK & VERIFICATION
@@ -425,8 +450,13 @@ def paystack_webhook():
         return jsonify({"status": "verification failed, will rely on retry"}), 200
 
     _apply_paystack_result(donation, verified)
-    db.session.commit()
-    logger.info("Donation %s status updated to %s", reference, donation.status)
+    try:
+        db.session.commit()
+        logger.info("Donation %s status updated to %s", reference, donation.status)
+    except Exception as e:
+        db.session.rollback()
+        logger.error("Failed to update donation status for %s: %s", reference, e)
+        return jsonify({"status": "database error"}), 500
 
     # Send WhatsApp receipt if completed and requested
     if donation.status == "Completed" and donation.send_whatsapp_receipt and donation.phone:
@@ -472,8 +502,12 @@ def verify_donation(reference):
         try:
             verified = verify_transaction(reference)
             _apply_paystack_result(donation, verified)
-            db.session.commit()
-            logger.info("Verify: updated donation %s to %s", reference, donation.status)
+            try:
+                db.session.commit()
+                logger.info("Verify: updated donation %s to %s", reference, donation.status)
+            except Exception as e:
+                db.session.rollback()
+                logger.error("Failed to update donation status for %s: %s", reference, e)
         except PaystackError:
             logger.warning("Verify: Paystack verification failed for %s (kept Pending)", reference)
             pass
