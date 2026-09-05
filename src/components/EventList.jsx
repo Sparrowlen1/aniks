@@ -80,35 +80,56 @@ export default function EventsList() {
     }));
   };
 
+  // ----- FIXED: handleRegister with proper phone & consent -----
   const handleRegister = async (e, eventId) => {
     e.preventDefault();
-    const currentForm = formStates[eventId] || { fullName: '', countryCode: '254', localNumber: '', optIn: true };
-    // Find the event to get its title
+    
+    // Get form state with defaults
+    const currentForm = formStates[eventId] || { 
+      fullName: '', 
+      countryCode: '254', 
+      localNumber: '', 
+      optIn: true 
+    };
+    
+    // Find event
     const event = events.find(ev => ev.id === eventId);
     const eventTitle = event?.title || 'ANIKA Event';
 
-    const phone = composePhone(currentForm.countryCode, currentForm.localNumber);
-    if (currentForm.localNumber.length !== 9) {
-      setSuccessMsg(prev => ({ ...prev, [eventId]: 'Enter a country code and 9-digit WhatsApp number.' }));
+    // Compose phone manually (fallback to composePhone if needed)
+    const countryCode = currentForm.countryCode || '254';
+    const localNumber = currentForm.localNumber || '';
+    const phone = `+${countryCode}${localNumber}`;
+
+    // Validate
+    if (!currentForm.fullName.trim()) {
+      setSuccessMsg(prev => ({ ...prev, [eventId]: 'Please enter your full name.' }));
+      return;
+    }
+    if (localNumber.length !== 9) {
+      setSuccessMsg(prev => ({ ...prev, [eventId]: 'Enter a 9-digit WhatsApp number.' }));
       return;
     }
 
     setLoading(prev => ({ ...prev, [eventId]: true }));
+    
     try {
       const payload = {
-        name: currentForm.fullName,
-        phone,
-        eventTitle,   // send the title as the backend expects
-        consent: currentForm.optIn,
+        name: currentForm.fullName.trim(),
+        phone: phone,
+        eventTitle: eventTitle,
+        consent: currentForm.optIn === true, // ensure boolean
         source: 'web',
       };
-      console.log('📤 Registration payload:', payload); // for debugging
+      
+      console.log('📤 Registration payload:', payload);
       await submitRegistration(payload);
-      setSuccessMsg(prev => ({ ...prev, [eventId]: 'Confirmed! Registration details sent via WhatsApp.' }));
+      
+      setSuccessMsg(prev => ({ ...prev, [eventId]: '✅ Confirmed! Registration details sent via WhatsApp.' }));
       setFormStates(prev => ({ ...prev, [eventId]: { fullName: '', countryCode: '254', localNumber: '', optIn: true } }));
     } catch (err) {
       console.error('Registration error:', err);
-      setSuccessMsg(prev => ({ ...prev, [eventId]: 'Could not confirm right now. Please try again.' }));
+      setSuccessMsg(prev => ({ ...prev, [eventId]: '❌ Could not confirm right now. Please try again.' }));
     } finally {
       setLoading(prev => ({ ...prev, [eventId]: false }));
     }
