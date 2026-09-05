@@ -25,7 +25,8 @@ class Config:
     DONATION_CALLBACK_URL = os.environ.get(
         "DONATION_CALLBACK_URL", "http://localhost:5173/donate/thank-you"
     )
-    # Flask-Mail
+
+    # Flask-Mail (still used for other emails, but newsletter now uses Brevo API)
     MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
     MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', '1', 'yes']
@@ -33,6 +34,9 @@ class Config:
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@anika.org')
+
+    # ----- NEW: Brevo API key (for newsletter) -----
+    BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 
     # Custom emails
     ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'dannymuthui118@gmail.com')
@@ -45,16 +49,15 @@ class Config:
         if o.strip()
     ]
 
-    # WhatsApp Business Cloud API (Meta). When TOKEN / PHONE_ID are empty the
-    # assistant still runs in simulated mode: inbound messages are processed
-    # and stored, but outbound sends are logged instead of hitting Graph API.
+    # WhatsApp
     WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
     WHATSAPP_PHONE_ID = os.environ.get("WHATSAPP_PHONE_ID", "")
     WHATSAPP_VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "")
     WHATSAPP_BASE_URL = os.environ.get(
         "WHATSAPP_BASE_URL", "https://graph.facebook.com/v21.0"
     )
-     # Cloudinary (gallery image storage)
+
+    # Cloudinary
     CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
     CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
     CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
