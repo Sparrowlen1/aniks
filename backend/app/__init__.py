@@ -150,6 +150,23 @@ def create_app(config_class=Config):
         db.engine.dispose()
         app.logger.info("Database engine disposed after initialization")
 
+        # ----- SEED ADMIN USER ON STARTUP (temporary) -----
+        try:
+            admin_email = os.getenv("SEED_LEADERSHIP_EMAIL", "admin@anikainitiative.com")
+            admin_password = os.getenv("SEED_LEADERSHIP_PASSWORD", "admin123")
+            admin_name = os.getenv("SEED_LEADERSHIP_NAME", "Admin")
+
+            if not User.query.filter_by(email=admin_email).first():
+                user = User(name=admin_name, email=admin_email, role="leadership")
+                user.set_password(admin_password)
+                db.session.add(user)
+                db.session.commit()
+                app.logger.info(f"✅ Seeded admin user: {admin_email}")
+            else:
+                app.logger.info(f"ℹ️ Admin user {admin_email} already exists")
+        except Exception as e:
+            app.logger.error(f"❌ Failed to seed admin user: {e}")
+
     @app.errorhandler(404)
     def not_found(_err):
         return jsonify({"error": "Not found"}), 404
